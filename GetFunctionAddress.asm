@@ -1,7 +1,9 @@
-section .text
-global GetFunctionAddress
+; WINDOWS 10, 22H2 19045
 
-GetFunctionAddress:
+.code
+
+GetFunctionAddress PROC
+    ; Function prologue: Save callee-saved registers and allocate space on the stack
     sub rsp, 200h
     mov [rsp + 40h], rbp
     mov [rsp + 48h], rdi
@@ -14,65 +16,78 @@ GetFunctionAddress:
     mov [rsp + 80h], r15
 
     ; Initialize some registers and retrieve the Thread Information Block (TIB)
+    mov rdi, -1
+    inc rdi
     xor rax, rax
-    lea rsi, [rax + 0x60]
+    lea rsi, [rax + 10h]
+    add rsi, 50h
     mov rbx, gs:[rsi]
-    mov rbx, [rbx + 0x18] ; PEB
-    mov rbx, [rbx + 0x10] ; LDR
-    mov rbx, [rbx + 0x30] ; InMemoryOrderModuleList
-
-    ; Loop through the modules in the InMemoryOrderModuleList
-FindModule:
-    mov rsi, [rbx + 0x28]
-    mov rdx, [rsp + 60h]
-    cmp rsi, rdx
-    jne NotTheModule
+    lea rsi, [rbx + 10h]
+    add rsi, 8
+    mov rbx, [rsi]
+    lea rsi, [rbx + 10h]
+    add rsi, 10h
+    mov rbx, [rsi]
     mov rbx, [rbx]
-    test rbx, rbx
-    jz End
-    jmp FindModule
-
-NotTheModule:
     mov rbx, [rbx]
-    test rbx, rbx
-    jz End
+    lea rsi, [rbx + 10h]
+    add rsi, 10h
+    mov rbx, [rsi]
 
-    jmp FindModule
+    ; Extract information from the TIB to locate the loaded modules
+    mov rax, [rsp + 60h]
+    mov rax, [rax]
+    xor r8, r8
+    xor r14, r14
+    mov r14d, 1Eh
+    add r14d, r14d
+    add r14, rbx
+    mov r8d, [r14]
+    xor r14, r14
+    mov rdx, r8
+    add rdx, rbx
+    mov r14d, 44h
+    shl r14d, 1
+    add r14, rdx
+    mov r8d, [r14]
+    add r8, rbx
+    xor rsi, rsi
+    mov r14d, 10h
+    shl r14d, 1
+    add r14, r8
+    mov esi, [r14]
+    add rsi, rbx
+    xor rcx, rcx
+    mov r9, rax
 
-End:
+Get_Function:
+    ; Loop to find the function address in the loaded modules
+    inc rcx
     xor rax, rax
-    mov rax, [rsi + 0x1C] ; Export Directory RVA
-    add rax, rsi
-    mov rsi, rax
-    mov rax, [rsi + 0x20] ; AddressOfNames RVA
-    add rax, rsi
-    mov r9, rax
-    mov rcx, [rsi + 0x18] ; NumberOfNames
-    xor r10, r10
-    xor r11, r11
+    mov eax, [rsi + rcx * 4]
+    add rax, rbx
+    cmp qword ptr [rax], r9
+    jnz Get_Function
 
-FindFunction:
-    mov eax, [r9 + r11 * 4]
-    add rax, rsi
-    mov rdx, [rsp + 60h]
-    mov r8, rax
-    mov ecx, 0xFFFFFFFF
-    repe cmpsb
-    je Found
-    inc r11
-    cmp r11, rcx
-    jb FindFunction
-
-Found:
-    mov eax, [rsi + 0x24]
-    add rax, rsi
-    mov r9, rax
-    mov eax, [r9 + r11 * 2]
-    and eax, 0xFFFF
-    mov r9, [rsi + 0x1C]
-    add r9, rsi
-    mov eax, [r9 + rax * 4]
-    add rax, rsi
+    ; Extract additional information about the function
+    xor r14, r14
+    mov r14d, 12h
+    shl r14d, 1
+    add r14, r8
+    mov esi, [r14]
+    add rsi, rbx
+    mov cx, [rsi + rcx * 2]
+    xor rsi, rsi
+    xor r14, r14
+    mov r14d, 0Eh
+    shl r14d, 1
+    add r14, r8
+    mov esi, [r14]
+    add rsi, rbx
+    xor rdx, rdx
+    mov edx, [rsi + rcx * 4]
+    add rdx, rbx
+    mov rax, rdx
 
     ; Function epilogue: Restore saved registers and free stack space
     mov rbp, [rsp + 40h]
@@ -85,3 +100,6 @@ Found:
     mov r15, [rsp + 80h]
     add rsp, 200h
     ret
+GetFunctionAddress ENDP
+
+END
