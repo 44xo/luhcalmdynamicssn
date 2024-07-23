@@ -1,7 +1,7 @@
-; WINDOWS 10, 22H2 19045
+.data
+    syscallPattern BYTE 4Ch, 8Bh, 0D1h, 0B8h
 
 .code
-
 GetFunctionAddress PROC
     ; Function prologue: Save callee-saved registers and allocate space on the stack
     sub rsp, 200h
@@ -16,22 +16,23 @@ GetFunctionAddress PROC
     mov [rsp + 80h], r15
 
     ; Initialize some registers and retrieve the Thread Information Block (TIB)
-    mov rdi, -1
+    xor rdi, rdi
     inc rdi
+    dec rdi
     xor rax, rax
-    lea rsi, [rax + 10h]
-    add rsi, 50h
+    lea rsi, [rax + 0x10]
+    add rsi, 0x50
     mov rbx, gs:[rsi]
-    lea rsi, [rbx + 10h]
-    add rsi, 8
+    lea rsi, [rbx + 0x10]
+    add rsi, 0x8
     mov rbx, [rsi]
-    lea rsi, [rbx + 10h]
-    add rsi, 10h
+    lea rsi, [rbx + 0x10]
+    add rsi, 0x10
     mov rbx, [rsi]
     mov rbx, [rbx]
     mov rbx, [rbx]
-    lea rsi, [rbx + 10h]
-    add rsi, 10h
+    lea rsi, [rbx + 0x10]
+    add rsi, 0x10
     mov rbx, [rsi]
 
     ; Extract information from the TIB to locate the loaded modules
@@ -39,20 +40,20 @@ GetFunctionAddress PROC
     mov rax, [rax]
     xor r8, r8
     xor r14, r14
-    mov r14d, 1Eh
+    mov r14d, 0x1E
     add r14d, r14d
     add r14, rbx
     mov r8d, [r14]
     xor r14, r14
     mov rdx, r8
     add rdx, rbx
-    mov r14d, 44h
+    mov r14d, 0x44
     shl r14d, 1
     add r14, rdx
     mov r8d, [r14]
     add r8, rbx
     xor rsi, rsi
-    mov r14d, 10h
+    mov r14d, 0x10
     shl r14d, 1
     add r14, r8
     mov esi, [r14]
@@ -60,18 +61,30 @@ GetFunctionAddress PROC
     xor rcx, rcx
     mov r9, rax
 
+    ; Random jump to confuse disassemblers
+    jmp short JumpOver1
+    nop
+JumpOver1:
+
 Get_Function:
     ; Loop to find the function address in the loaded modules
     inc rcx
     xor rax, rax
     mov eax, [rsi + rcx * 4]
     add rax, rbx
-    cmp qword ptr [rax], r9
-    jnz Get_Function
+    cmp qword [rax], r9
+    jnz SkipFunctionCheck
+    jmp short ContinueFunctionSearch
 
+SkipFunctionCheck:
+    ; More obfuscation with a redundant comparison
+    cmp rax, rax
+    jmp Get_Function
+
+ContinueFunctionSearch:
     ; Extract additional information about the function
     xor r14, r14
-    mov r14d, 12h
+    mov r14d, 0x12
     shl r14d, 1
     add r14, r8
     mov esi, [r14]
@@ -79,7 +92,7 @@ Get_Function:
     mov cx, [rsi + rcx * 2]
     xor rsi, rsi
     xor r14, r14
-    mov r14d, 0Eh
+    mov r14d, 0x0E
     shl r14d, 1
     add r14, r8
     mov esi, [r14]
@@ -99,6 +112,12 @@ Get_Function:
     mov r14, [rsp + 78h]
     mov r15, [rsp + 80h]
     add rsp, 200h
+
+    ; Random jumps for further obfuscation
+    jmp short JumpOver2
+    nop
+JumpOver2:
+
     ret
 GetFunctionAddress ENDP
 
